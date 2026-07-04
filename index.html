@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Verified Consent Prototype</title>
+<style>
+  :root{
+    --ink:#0F0F0F;
+    --ink-soft:#606060;
+    --ink-faint:#909090;
+    --line:#E5E5E5;
+    --surface:#FFFFFF;
+    --page:#EFEFEF;
+    --red:#CC0000;
+    --red-press:#A60000;
+    --green:#1A7F37;
+    --green-tint:#E8F5EA;
+    --red-tint:#FCEAEA;
+    --blue:#1A56DB;
+    --blue-tint:#EAF1FE;
+    --fail:#D93025;
+    --fail-tint:#FBEAE9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--page);
+    color:var(--ink);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:32px 16px;
+    min-height:100vh;
+  }
+  .rig{display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap; justify-content:center;}
+  .caption{text-align:center; font-size:12px; color:var(--ink-faint); margin-top:10px; letter-spacing:.02em; max-width:360px; line-height:1.5;}
+  .legend{
+    max-width:280px; font-size:12.5px; color:var(--ink-soft); line-height:1.6;
+    background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px;
+  }
+  .legend b{color:var(--ink); display:block; margin-bottom:8px; font-size:13px;}
+  .legend .tag{
+    display:inline-block; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:6px;
+    margin-right:6px; vertical-align:middle;
+  }
+  .tag.happy{background:var(--green-tint); color:var(--green);}
+  .tag.neg{background:var(--fail-tint); color:var(--fail);}
+  .tag.dl{background:var(--blue-tint); color:var(--blue);}
+  .phone{
+    width:360px; height:740px; background:var(--surface); border-radius:36px;
+    box-shadow:0 24px 60px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.08);
+    overflow:hidden; position:relative; border:8px solid #1c1c1c;
+  }
+  .statusbar{
+    height:34px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 20px; font-size:12px; font-weight:600; color:var(--ink); background:var(--surface);
+  }
+  .screen{position:absolute; top:34px; left:0; right:0; bottom:0; background:var(--surface); display:none; flex-direction:column; overflow-y:auto;}
+  .screen.active{display:flex;}
+  .content{padding:22px 22px 110px 22px; flex:1;}
+  .dots{display:flex; gap:6px; padding:16px 22px 0 22px;}
+  .dot{width:26px; height:4px; border-radius:2px; background:var(--line);}
+  .dot.done{background:var(--red);}
+  h1{font-size:21px; font-weight:700; margin:18px 0 6px 0; letter-spacing:-.01em;}
+  p.lede{font-size:14px; color:var(--ink-soft); line-height:1.45; margin:0 0 22px 0;}
+  label.field-label{font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:8px;}
+  .dob-row{display:flex; gap:8px; margin-bottom:26px;}
+  .dob-row select{flex:1; padding:12px 8px; border-radius:10px; border:1px solid var(--line); font-size:14px; color:var(--ink); background:var(--surface);}
+  .text-input{
+    width:100%; padding:13px 12px; border-radius:10px; border:1px solid var(--line);
+    font-size:14px; color:var(--ink); background:var(--surface); margin-bottom:18px;
+  }
+  .option-card{border:1.5px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px; cursor:pointer; transition:border-color .15s ease, background .15s ease;}
+  .option-card:hover{border-color:#c9c9c9;}
+  .option-card.selected{border-color:var(--red); background:var(--red-tint);}
+  .option-card .otitle{font-size:14.5px; font-weight:700; margin-bottom:4px;}
+  .option-card .osub{font-size:12.5px; color:var(--ink-soft);}
+  .radio-dot{width:18px; height:18px; border-radius:50%; border:2px solid var(--line); display:inline-block; vertical-align:middle; margin-right:10px; position:relative; flex:none;}
+  .option-card.selected .radio-dot{border-color:var(--red);}
+  .option-card.selected .radio-dot::after{content:""; position:absolute; top:3px; left:3px; width:8px; height:8px; border-radius:50%; background:var(--red);}
+  .option-row{display:flex; align-items:flex-start;}
+  .cta-bar{position:absolute; left:0; right:0; bottom:0; padding:14px 22px 22px 22px; background:linear-gradient(to top, var(--surface) 70%, rgba(255,255,255,0));}
+  button.primary{width:100%; padding:14px; border:none; border-radius:24px; background:var(--red); color:#fff; font-size:15px; font-weight:700; cursor:pointer; transition:background .15s ease, opacity .15s ease;}
+  button.primary:active{background:var(--red-press);}
+  button.primary:disabled{background:#E5B3B3; cursor:not-allowed;}
+  button.primary.blue{background:var(--blue);}
+  button.primary.blue:active{background:#123f9e;}
+  button.ghost{width:100%; padding:12px; border:none; background:none; color:var(--ink-soft); font-size:13px; margin-top:8px; cursor:pointer; text-decoration:underline;}
+  button.ghost.danger{color:var(--fail);}
+  .parent-card{border:1.5px solid var(--line); border-radius:16px; padding:20px; text-align:center; margin-top:6px;}
+  .parent-card .avatar{width:56px; height:56px; border-radius:50%; background:#F0C419; color:#5c4400; font-weight:700; font-size:20px; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto;}
+  .parent-card .ptitle{font-size:15px; font-weight:700; margin-bottom:4px;}
+  .parent-card .psub{font-size:12.5px; color:var(--ink-soft); margin-bottom:18px;}
+  .approve-row{display:flex; gap:10px;}
+  .approve-row button{flex:1; padding:12px; border-radius:20px; font-size:14px; font-weight:700; border:none; cursor:pointer;}
+  .btn-approve{background:var(--green); color:#fff;}
+  .btn-deny{background:#F1F1F1; color:var(--ink-soft);}
+  .status-pill{display:inline-flex; align-items:center; gap:6px; background:var(--green-tint); color:var(--green); font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:20px; margin-top:16px;}
+  .toggle-row{display:flex; justify-content:space-between; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--line); gap:14px;}
+  .toggle-row .ttitle{font-size:14px; font-weight:600; margin-bottom:3px;}
+  .toggle-row .tsub{font-size:12px; color:var(--ink-soft); line-height:1.4;}
+  .switch{width:42px; height:24px; border-radius:14px; background:var(--line); position:relative; flex:none; cursor:pointer; transition:background .15s ease; margin-top:2px;}
+  .switch.on{background:var(--green);}
+  .switch.locked{background:#111; cursor:default; opacity:.85;}
+  .switch .knob{width:18px; height:18px; border-radius:50%; background:#fff; position:absolute; top:3px; left:3px; transition:left .15s ease; box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .switch.on .knob{left:21px;}
+  .lock-tag{font-size:10.5px; color:var(--ink-faint); font-weight:700;}
+  .center-flow{display:flex; flex-direction:column; align-items:center; text-align:center; padding-top:48px;}
+  .check-circle{width:76px; height:76px; border-radius:50%; background:var(--green-tint); display:flex; align-items:center; justify-content:center; margin-bottom:22px;}
+  .check-circle.fail{background:var(--fail-tint);}
+  .check-circle svg{width:36px; height:36px;}
+  .row-item{display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid var(--line);}
+  .row-item .rtitle{font-size:13.5px; font-weight:600;}
+  .row-item .ractions a{font-size:12.5px; color:var(--red); font-weight:700; text-decoration:none; margin-left:14px;}
+  .section-label{font-size:11.5px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.06em; margin:22px 0 6px 0;}
+  .summary-line{display:flex; justify-content:space-between; padding:9px 0; font-size:13px;}
+  .summary-line .lbl{color:var(--ink-soft);}
+  .summary-line .val{font-weight:700;}
+  .val.on{color:var(--green);}
+  .val.off{color:var(--ink-faint);}
+  .service-tag{
+    display:inline-flex; align-items:center; gap:6px; background:var(--blue-tint); color:var(--blue);
+    font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:20px; margin-bottom:16px;
+  }
+  .info-banner{
+    background:var(--blue-tint); border-radius:12px; padding:14px; font-size:12.5px; color:#123f9e;
+    line-height:1.5; margin-bottom:18px;
+  }
+  .fail-banner{
+    background:var(--fail-tint); border-radius:12px; padding:14px; font-size:12.5px; color:var(--fail);
+    line-height:1.5; margin-bottom:18px;
+  }
+  .otp-row{display:flex; gap:8px; margin-bottom:8px;}
+  .otp-row input{
+    width:44px; height:52px; text-align:center; font-size:18px; border-radius:10px;
+    border:1px solid var(--line); font-weight:700;
+  }
+</style>
+</head>
+<body>
+<div class="rig">
+
+  <div class="legend">
+    <b>How to demo this</b>
+    <span class="tag happy">HAPPY</span> Screen 2 → keep "existing parent" selected → Approve<br><br>
+    <span class="tag dl">DIGILOCKER</span> Screen 2 → select DigiLocker → Send OTP → tap Verify<br><br>
+    <span class="tag neg">DECLINE</span> Screen 3 → tap "Not now"<br><br>
+    <span class="tag neg">DL FAILURE</span> DigiLocker OTP screen → tap "Simulate: verification blocked"
+  </div>
+
+  <div>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>YouTube</span><span>●●●</span></div>
+
+      <!-- SCREEN 1: Sign up -->
+      <div class="screen active" id="s1">
+        <div class="dots"><div class="dot done"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="content">
+          <h1>Create your account</h1>
+          <p class="lede">Enter your date of birth. This helps us give you the right experience.</p>
+          <label class="field-label">Date of birth</label>
+          <div class="dob-row">
+            <select><option>14</option></select>
+            <select><option>March</option></select>
+            <select><option>2012</option></select>
+          </div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="showScreen('s2')">Continue</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 2: choose verification path -->
+      <div class="screen" id="s2">
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="content">
+          <h1>Let's confirm with a parent</h1>
+          <p class="lede">You're under 18, so a parent or guardian needs to approve your account before you continue.</p>
+
+          <div class="option-card selected" id="optA" onclick="selectOption('optA')">
+            <div class="option-row">
+              <span class="radio-dot"></span>
+              <div>
+                <div class="otitle">A parent already uses YouTube on this phone</div>
+                <div class="osub">Fastest way. No extra app needed.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="option-card" id="optB" onclick="selectOption('optB')">
+            <div class="option-row">
+              <span class="radio-dot"></span>
+              <div>
+                <div class="otitle">Verify with DigiLocker</div>
+                <div class="osub">For parents without a linked account on this device.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="proceedFromS2()">Continue</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 3: existing-account parent approval -->
+      <div class="screen" id="s3">
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="content">
+          <h1>Waiting for approval</h1>
+          <p class="lede">We sent a request to Anita's phone (your linked parent account).</p>
+
+          <div class="parent-card" id="parentCard">
+            <div class="avatar">A</div>
+            <div class="ptitle">Rohan wants to join YouTube</div>
+            <div class="psub">Anita, approve this to continue.</div>
+            <div class="approve-row">
+              <button class="btn-deny" onclick="denyTap()">Not now</button>
+              <button class="btn-approve" onclick="approveTap()">Approve</button>
+            </div>
+          </div>
+
+          <div id="approvedPill" style="display:none; text-align:center;">
+            <span class="status-pill">✓ Approved by Anita</span>
+          </div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" id="s3continue" disabled onclick="showScreen('s4')">Continue</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 3-NEG: parent declined -->
+      <div class="screen" id="s3neg">
+        <div class="content center-flow">
+          <div class="check-circle fail">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#D93025" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </div>
+          <h1>We couldn't confirm with a parent</h1>
+          <p class="lede">Anita chose "Not now." You can ask again, or continue with a limited experience until a parent approves.</p>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="showScreen('s2')">Try again</button>
+          <button class="ghost" onclick="showScreen('s3negfinal')">Continue with limited access</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 3-NEG-FINAL: limited access outcome -->
+      <div class="screen" id="s3negfinal">
+        <div class="content">
+          <h1>You're browsing with limited access</h1>
+          <p class="lede">Personalized recommendations, ad personalization, and sharing with partners stay off until a parent completes verification. Anita can finish this anytime from Family Center.</p>
+          <div class="info-banner">This mirrors DPDP's requirement: without verified consent, only the essential, non-personalized experience is available.</div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="resetDemo(); showScreen('s1')">Got it</button>
+        </div>
+      </div>
+
+      <!-- SCREEN DL-1: DigiLocker start -->
+      <div class="screen" id="sd1">
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="content">
+          <span class="service-tag">🔒 External verification via DigiLocker</span>
+          <h1>Verify a parent's age</h1>
+          <p class="lede">DigiLocker confirms a parent is an adult without sharing their ID with YouTube. You'll need their Aadhaar-linked mobile number.</p>
+          <label class="field-label">Parent's mobile number</label>
+          <input class="text-input" type="tel" placeholder="+91 9XXXXXXXXX" value="+91 98765 43210" />
+        </div>
+        <div class="cta-bar">
+          <button class="primary blue" onclick="showScreen('sd2')">Send OTP</button>
+        </div>
+      </div>
+
+      <!-- SCREEN DL-2: DigiLocker OTP -->
+      <div class="screen" id="sd2">
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot"></div><div class="dot"></div></div>
+        <div class="content">
+          <span class="service-tag">🔒 External verification via DigiLocker</span>
+          <h1>Enter the OTP</h1>
+          <p class="lede">Sent to the mobile number linked to DigiLocker.</p>
+          <div class="otp-row">
+            <input maxlength="1" value="4"/><input maxlength="1" value="8"/><input maxlength="1" value="2"/><input maxlength="1" value="9"/>
+          </div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary blue" onclick="showScreen('sd3')">Verify</button>
+          <button class="ghost danger" onclick="showScreen('sdfail')">Simulate: verification blocked</button>
+        </div>
+      </div>
+
+      <!-- SCREEN DL-3: DigiLocker success -->
+      <div class="screen" id="sd3">
+        <div class="content center-flow">
+          <div class="check-circle">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#1A7F37" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h1>Verified via DigiLocker</h1>
+          <p class="lede">A parent's identity and age have been confirmed. YouTube never received their Aadhaar details, only a yes/no confirmation.</p>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="showScreen('s4')">Continue</button>
+        </div>
+      </div>
+
+      <!-- SCREEN DL-FAIL: DigiLocker blocked -->
+      <div class="screen" id="sdfail">
+        <div class="content center-flow">
+          <div class="check-circle fail">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="#D93025" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </div>
+          <h1>We couldn't verify through DigiLocker</h1>
+          <p class="lede">This usually happens when a VPN is on, developer mode is enabled, or the device is jailbroken or rooted. Ask the parent to turn these off and try again.</p>
+          <div class="fail-banner">Known limitation: DigiLocker checks fail under these conditions by design, it's a security measure on their end, not a bug here.</div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary blue" onclick="showScreen('sd1')">Try again</button>
+          <button class="ghost" onclick="resetS3(); showScreen('s3')">Use an existing parent account instead</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 4: itemized consent -->
+      <div class="screen" id="s4">
+        <div class="dots"><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot done"></div><div class="dot"></div></div>
+        <div class="content">
+          <h1>Choose what's on</h1>
+          <p class="lede">You can change any of this anytime in Family Center.</p>
+
+          <div class="toggle-row">
+            <div>
+              <div class="ttitle">Videos &amp; recommendations</div>
+              <div class="tsub">Needed to use YouTube.</div>
+              <div class="lock-tag">ALWAYS ON</div>
+            </div>
+            <div class="switch on locked"><div class="knob"></div></div>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="ttitle">Personalized recommendations</div>
+              <div class="tsub">Uses watch history to suggest videos.</div>
+            </div>
+            <div class="switch" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <div class="ttitle">Ad personalization</div>
+              <div class="tsub">Shows ads based on activity.</div>
+            </div>
+            <div class="switch" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+          </div>
+
+          <div class="toggle-row" style="border-bottom:none;">
+            <div>
+              <div class="ttitle">Share with partners</div>
+              <div class="tsub">Helps measure how ads perform.</div>
+            </div>
+            <div class="switch" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+          </div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="showScreen('s5')">Confirm choices</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 5: confirmation -->
+      <div class="screen" id="s5">
+        <div class="content center-flow">
+          <div class="check-circle">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#1A7F37" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h1>You're all set</h1>
+          <p class="lede">Anita can review or change these choices anytime in Family Center.</p>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="alert('Happy path complete: this would open the YouTube home feed.')">Start watching</button>
+          <button class="ghost" onclick="showScreen('s6')">Preview: what Anita sees →</button>
+        </div>
+      </div>
+
+      <!-- SCREEN 6: parent dashboard (bonus) -->
+      <div class="screen" id="s6">
+        <div class="content">
+          <h1 style="margin-top:2px;">Family Center</h1>
+          <p class="lede">Rohan's account</p>
+
+          <div class="section-label">Data collected</div>
+          <div class="row-item">
+            <div class="rtitle">Watch history</div>
+            <div class="ractions"><a href="#">View</a><a href="#">Delete</a></div>
+          </div>
+          <div class="row-item">
+            <div class="rtitle">Search history</div>
+            <div class="ractions"><a href="#">View</a><a href="#">Delete</a></div>
+          </div>
+          <div class="row-item" style="border-bottom:none;">
+            <div class="rtitle">Device info</div>
+            <div class="ractions"><a href="#">View</a><a href="#">Delete</a></div>
+          </div>
+
+          <div class="section-label">Current consent</div>
+          <div class="summary-line"><span class="lbl">Videos &amp; recommendations</span><span class="val on">On</span></div>
+          <div class="summary-line"><span class="lbl">Personalized recommendations</span><span class="val off">Off</span></div>
+          <div class="summary-line"><span class="lbl">Ad personalization</span><span class="val off">Off</span></div>
+          <div class="summary-line"><span class="lbl">Share with partners</span><span class="val off">Off</span></div>
+        </div>
+        <div class="cta-bar">
+          <button class="primary" onclick="showScreen('s5')">Done</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="caption">Happy path: Screens 1→2→3→4→5. DigiLocker path and decline/failure states branch off Screens 2 and 3, see the legend on the left.</div>
+  </div>
+
+</div>
+
+<script>
+let selectedPath = 'A';
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(el){ el.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+}
+function selectOption(id){
+  document.getElementById('optA').classList.remove('selected');
+  document.getElementById('optB').classList.remove('selected');
+  document.getElementById(id).classList.add('selected');
+  selectedPath = (id === 'optA') ? 'A' : 'B';
+}
+function proceedFromS2(){
+  if (selectedPath === 'A'){
+    resetS3();
+    showScreen('s3');
+  } else {
+    showScreen('sd1');
+  }
+}
+function resetS3(){
+  document.getElementById('parentCard').style.display = 'block';
+  document.getElementById('approvedPill').style.display = 'none';
+  document.getElementById('s3continue').disabled = true;
+}
+function approveTap(){
+  document.getElementById('parentCard').style.display = 'none';
+  document.getElementById('approvedPill').style.display = 'block';
+  document.getElementById('s3continue').disabled = false;
+}
+function denyTap(){
+  showScreen('s3neg');
+}
+function resetDemo(){
+  selectedPath = 'A';
+  selectOption('optA');
+  resetS3();
+}
+</script>
+</body>
+</html>
